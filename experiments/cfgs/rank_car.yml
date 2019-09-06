@@ -1,0 +1,136 @@
+# How to retrieve those missing values. Currently, only zero-padding is supported
+MISS_VAL_HANDLER: zero_pad
+# Regression type (for 'oil_wear'). Currently, only linear regression is implemented
+REG_TYPE: linear    # linear/poly
+# Coefficients(or weights/biases) of regression
+#   It's recommended that you use pretrained weights. Of course, you can train on the fly
+#   and use the newly trained weights(which is corresponding to the configuration `runtime`)
+REG_PARAM: pretrain # pretrain/runtime
+MERGE: True
+# Connection string of Database
+DB_CONN:
+  HOST: 192.168.2.202
+  USER: qzppbdata
+  PASSWORD: zhwefe77,,@QQ
+  DATABASE: AutoCarData
+
+# Before ranking, we need to calculate scores of cars in which we are interesting.
+#   We use a linear model and weighted sum all related indices values as the final scores.
+#   Ranking then can be done according to those scores.
+#
+# Every item coefficient will be a float or a list of floats. For a single float, it means
+#   that pure_electro, oil and hybrid share the same value. A float-list then contains 
+#   cofficients with the same order of 'pure_electro', 'oil' and 'hybrid', and that implies 
+#   the list must have a length of 3.
+#
+SCORE_COEFF:  # order as pure_electro, oil, hybrid
+  _self: 1
+  user_score: #
+    _self: 0.1
+    yiche_score: 0.1
+    autocar:
+      _self: 0.9
+      wordmouth_num: 0.7
+      user_score: 0.3
+  preserve_mean: 0.1
+  battery:
+    _self: [0.6,0,0.4]
+    charge_fast: -0.15
+    charge_slow: -0.05
+    mileag: 0.7
+    battery_capacity: 0.1
+  performance:
+    _self: [0.2,0.8,0.4]
+    engine: 0.25
+    max_power: 0.45
+    max_torque: 0.05
+    oil_wear: -0.2
+    max_horse: 0
+    max_speed: 0.05
+    office_acc_time: 0
+
+# [s, e)
+# PRICE_RANGES: [8, 12, 15, 20, 35, 50, 100]
+
+# If the result of auto-classification do not meet your requirement, 
+#   you can write down classifying configuration here. Be careful that
+#   all key names `must` be the same as those in DATABASE, or else the
+#   program cannot recognize the configuration exactly.
+# The configuration value format is '[xx,...]', in which each element represents
+#   a sentinel.
+#   e.g.
+#     MPV:
+#       MPV:
+#         燃油: [10,20,50]
+#     there are 4 subranges: '10万以下', '10万-20万', '20万-50万', '50万以上'
+# If the type of oil does not matter, please replace '汽油' and '柴油' with '燃油';
+#   otherwise, use that what should be.
+CAT_MANUAL:
+  _SWITCH: on    # use this configuration item or categorize automatically?
+  MPV:
+    MPV:
+      燃油: [10,20,50]
+  SUV:
+    紧凑型SUV:
+      燃油: [10, 15, 20]
+    中型SUV:
+      燃油: [15,30,50]
+    中大型SUV:
+      燃油: [50,100]
+    小型SUV:
+      燃油: [8,12]
+  跑车:
+    跑车:
+      燃油: [100, 300]
+  皮卡:
+    皮卡:
+      柴油: [11]
+      汽油: [10]
+  轿车:
+    中型车:
+      燃油: [20, 30, 50]
+    中大型车:
+      燃油: [50, 100]
+    小型车:
+      燃油: [8]
+    微型车:
+      纯电动: [12]
+    紧凑型车:
+      燃油: [8, 12, 15, 30]
+  轻客:
+    轻客:
+      汽油: [15]
+      柴油: [25]
+  微卡:
+    微卡:
+      燃油: [4]
+  微面:
+    微面:
+      燃油: [5]
+
+# After ranked, for each car the specified fields will be shown. 
+#   (Refer to the sample '$PPB_ROOT/data/轿车_紧凑型车_汽油.txt')
+SHOW_FIELDS:
+  _SWITCH: off    # use this configuration item or show all fields/indices?
+  data: [
+    ['name', 'varchar(200)', 'null'],
+    ['engine', 'float', 'not null'],
+    ['mileag', 'float', 'not null'],
+    ['max_power', 'float', 'not null'],
+    ['charge_fast', 'float', 'not null'],
+    ['preserve_mean', 'float', 'not null'],
+    ['guide_price', 'varchar(100)', 'null'],
+    ['index_url', 'varchar(500)', 'null'],
+    ['cat_name', 'varchar(100)', 'null'],
+    ['grade', 'varchar(100)', 'null'],
+    ['energy_type', 'varchar(100)', 'null'],
+    ['price_range', 'varchar(100)', 'null'],
+    ['score', 'float', 'not null'],
+    ['rank', 'int', 'not null']
+  ]
+  pure_electro: ['name', 'mileag','charge_fast','max_power','preserve_mean','guide_price','index_url']
+  oil: ['name', 'engine','max_power','preserve_mean','guide_price','index_url']
+  hybrid: ['name', 'engine','mileag','max_power','preserve_mean','guide_price','index_url']
+
+# where to print the ranked results, file or standard out(screen)?
+SHOW_DEST: database   # file, stdout, database
